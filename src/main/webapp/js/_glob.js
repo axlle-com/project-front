@@ -53,6 +53,7 @@ const _glob = {
         hasSend = false;
         payload;
         action;
+        type = 'post';
         form = null;
         response;
         data;
@@ -102,25 +103,10 @@ const _glob = {
             if (object) {
                 if ('action' in object) {
                     this.action = object.action;
+                    this.type = object.type;
                     delete object.action;
-                    let data = new FormData();
-                    if (Object.keys(object).length) {
-                        for (let key in object) {
-                            /****** TODO make recursive  ******/
-                            if (typeof object[key] === 'object') {
-                                let cnt = 0;
-                                for (let key2 in object[key]) {
-                                    data.append(key + '[' + cnt + ']', object[key][key2]);
-                                    cnt++;
-                                }
-                            } else {
-                                if (object[key]) {
-                                    data.append(key, object[key]);
-                                }
-                            }
-                        }
-                    }
-                    this.payload = data;
+                    delete object.type;
+                    this.payload = object;
                 } else if (object instanceof jQuery) {
                     this.form = object;
                     this.action = this.form.attr('action');
@@ -198,16 +184,13 @@ const _glob = {
             }
             self.hasSend = true;
             self.appendImages();
-            self.appendImages();
             const csrf = $('meta[name="csrf-token"]').attr('content');
             $.ajax({
                 url: self.action,
                 headers: {'X-CSRF-TOKEN': csrf},
-                type: 'POST',
+                type: self.type,
                 dataType: 'json',
                 data: self.payload,
-                processData: false,
-                contentType: false,
                 beforeSend: function () {
                 },
                 success: function (response) {
@@ -242,8 +225,8 @@ const _glob = {
 
         setData(response) {
             const self = this;
-            self.response = response;
-            if (response && 'status' in response && response.status && 'data' in response) {
+            if (response &&  response === Object(response) && 'status' in response && response.status && 'data' in response) {
+                self.response = response;
                 self.data = response.data;
                 self.form ? self.form[0].reset() : null;
             } else {
