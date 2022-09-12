@@ -3,7 +3,7 @@ const _cl_ = (p) => {
 }
 const _glob = {
     ERROR_MESSAGE: 'Произошла ошибка, попробуйте позднее!',
-    ERROR_FIELD: 'Поле обязательное для заполнения',
+    ERROR_FIELD: 'Required field',
     spareParts: [],
     images: {},
     path: null,
@@ -29,7 +29,7 @@ const _glob = {
             if (typeof Noty != 'undefined') {
                 new Noty(_config).show();
             } else {
-                this.console.error(e.message);
+                _glob.console.error(message);
                 alert(message);
             }
         },
@@ -55,6 +55,7 @@ const _glob = {
         action;
         type = 'post';
         form = null;
+        isForm = false;
         response;
         data;
         view;
@@ -65,6 +66,11 @@ const _glob = {
             if (object) {
                 this.setObject(object);
             }
+        }
+
+        setIsForm() {
+            this.isForm = true;
+            return this;
         }
 
         reset() {
@@ -118,14 +124,15 @@ const _glob = {
             return this;
         }
 
-        validateForm() {
-            if (this.form && this.validate) {
+        validateForm(form) {
+            if (this.validate) {
                 let err = [];
-                $.each(this.form.find('[data-validator-required]'), function (index, value) {
+                $.each(form.find('[data-validator-required]'), function (index, value) {
                     err.push(_glob.validation.change($(this)));
                 });
                 this.hasErrors = err.indexOf(true) !== -1;
             }
+            return this;
         }
 
         setAction(action) {
@@ -170,9 +177,8 @@ const _glob = {
 
         send(callback = null) {
             const self = this;
-            this.validateForm();
             if (this.hasErrors) {
-                _glob.noty.error('Заполнены не все обязательные поля');
+                _glob.noty.error('Not all required fields are filled');
                 return;
             }
             if (this.hasSend) {
@@ -185,7 +191,7 @@ const _glob = {
             self.hasSend = true;
             self.appendImages();
             const csrf = $('meta[name="csrf-token"]').attr('content');
-            $.ajax({
+            const params = {
                 url: self.action,
                 headers: {'X-CSRF-TOKEN': csrf},
                 type: self.type,
@@ -193,14 +199,19 @@ const _glob = {
                 data: self.payload,
                 beforeSend: function () {
                 },
-                success: function (response) {
-                    self.setData(response).defaultBehavior();
+                success: function (response, textStatus, xhr) {
+                    if(xhr.status === 200){
+                        self.setData(response).defaultBehavior();
+                        if (callback) {
+                            callback(response);
+                        }
+                    }
+                },
+                error: function (response, textStatus, xhr) {
                     if (callback) {
                         callback(response);
                     }
-                },
-                error: function (response) {
-                    self.errorResponse(response);
+                    // self.errorResponse(response);
                 },
                 complete: function () {
                     self.hasSend = false;
@@ -208,7 +219,12 @@ const _glob = {
                         self.preloader.hide();
                     }
                 }
-            });
+            };
+            if (self.isForm) {
+                params['data'] = JSON.stringify(self.payload);
+                params['contentType'] = 'application/json; charset=utf-8';
+            }
+            $.ajax(params);
         }
 
         getData() {
@@ -225,7 +241,7 @@ const _glob = {
 
         setData(response) {
             const self = this;
-            if (response &&  response === Object(response) && 'status' in response && response.status && 'data' in response) {
+            if (response && response === Object(response) && 'status' in response && response.status && 'data' in response) {
                 self.response = response;
                 self.data = response.data;
                 self.form ? self.form[0].reset() : null;
@@ -305,17 +321,27 @@ const _glob = {
                     help.text('').hide();
                 } else {
                     field.addClass('is-invalid');
-                    help.text(self.ERROR_FIELD).show();
+                    help.text(_glob.ERROR_FIELD).show();
                     err = true;
                 }
             } else {
                 if (field.val()) {
-                    field.removeClass('is-invalid');
-                    help.text('').hide();
+                    const rule = field.attr('data-validator-required');
+                    if (rule) {
+                        const ruleArray = rule.split(':');
+                        if (ruleArray[0] === 'length') {
+                            const lenArray = ruleArray[1].split('-');
+
+                        }
+                    } else {
+                        field.removeClass('is-invalid');
+                        help.text('').hide();
+                    }
                 } else {
                     field.addClass('is-invalid');
-                    help.text(self.ERROR_FIELD).show();
+                    help.text(_glob.ERROR_FIELD).show();
                     err = true;
+
                 }
             }
             return err;
@@ -429,6 +455,33 @@ const _glob = {
             obj.inputmask({"mask": "+7(999) 999-99-99"});
         }
     },
+    dateRangePicker: function () {
+        try {
+            flatpickr('.date-range-picker', {
+                mode: 'range',
+                dateFormat: 'd.m.Y',
+            });
+        } catch (e) {
+            _glob.console.error(e.message);
+        }
+        try {
+            flatpickr('.date-picker', {
+                dateFormat: 'd.m.Y',
+            });
+        } catch (e) {
+            _glob.console.error(e.message);
+        }
+        try {
+            flatpickr('.datepicker-wrap', {
+                allowInput: true,
+                clickOpens: false,
+                wrap: true,
+                dateFormat: 'd.m.Y',
+            })
+        } catch (e) {
+            _glob.console.error(e.message);
+        }
+    },
     synchronization: function () {
         const self = this;
         $('body').on('change', '[data-synchronization]', function (evt) {
@@ -507,6 +560,11 @@ const _glob = {
         }
         try {
             this.select2();
+        } catch (e) {
+            this.console.error(e.message);
+        }
+        try {
+            this.dateRangePicker();
         } catch (e) {
             this.console.error(e.message);
         }

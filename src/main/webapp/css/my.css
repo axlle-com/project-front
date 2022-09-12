@@ -1,0 +1,9 @@
+.edit,.delete,.save{
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+.form-control{
+    padding: 5px 10px;
+    line-height: 17px;
+}
